@@ -305,15 +305,13 @@ export function DynamicForm({
             </div>
           ))}
 
-          {!formSubmitted && (
-            <Button
-              type="submit"
-              className={`w-full ${primaryColor} text-white`}
-              disabled={isSubmitting || isLoading}
-            >
-              {isSubmitting || isLoading ? "Submitting..." : submitButtonText}
-            </Button>
-          )}
+          <Button
+            type="submit"
+            className={`w-full ${primaryColor} text-white`}
+            disabled={isSubmitting || isLoading}
+          >
+            {isSubmitting || isLoading ? "Submitting..." : submitButtonText}
+          </Button>
         </form>
       </CardContent>
     </Card>
