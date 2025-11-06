@@ -307,8 +307,9 @@ export function DynamicForm({
 
           <Button
             type="submit"
-            className={`w-full ${primaryColor} text-white`}
+            className={`w-full ${primaryColor} text-white ${formSubmitted&&"hidden"}`}
             disabled={isSubmitting || isLoading}
+            
           >
             {isSubmitting || isLoading ? "Submitting..." : submitButtonText}
           </Button>
