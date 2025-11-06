@@ -1,7 +1,16 @@
 "use client";
 
-import React, { useState } from "react";
-const Button = ({ children, className = "", ...props }: { children: React.ReactNode; className?: string; [key: string]: any }) => (
+import React, { useState, useEffect } from "react";
+
+const Button = ({
+  children,
+  className = "",
+  ...props
+}: {
+  children: React.ReactNode;
+  className?: string;
+  [key: string]: any;
+}) => (
   <button
     className={`px-4 py-2 rounded-md font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors disabled:opacity-50 ${className}`}
     {...props}
@@ -17,12 +26,19 @@ const Input = ({ className = "", ...props }) => (
   />
 );
 
-const Label = ({ children, className = "", ...props }: { children: React.ReactNode; className?: string; [key: string]: any }) => (
+const Label = ({
+  children,
+  className = "",
+  ...props
+}: {
+  children: React.ReactNode;
+  className?: string;
+  [key: string]: any;
+}) => (
   <label className={`block font-medium text-sm ${className}`} {...props}>
     {children}
   </label>
 );
-
 
 import {
   Card,
@@ -70,6 +86,10 @@ interface DynamicFormProps {
   description?: string;
   isLoading?: boolean;
   theme?: ThemeConfig;
+
+  // ✅ NEW
+  formSubmitted?: boolean;
+  initialValues?: Record<string, any>;
 }
 
 export function DynamicForm({
@@ -80,15 +100,30 @@ export function DynamicForm({
   description = "",
   isLoading = false,
   theme = {},
+
+  formSubmitted = false,
+  initialValues = {},
 }: DynamicFormProps) {
+  const defaultValues = fields.reduce((acc, f) => {
+    acc[f.name] = f.type === "checkbox" ? false : "";
+    return acc;
+  }, {} as Record<string, any>);
+
   const [formData, setFormData] = useState<Record<string, any>>(
-    fields.reduce((acc, f) => {
-      acc[f.name] = f.type === "checkbox" ? false : "";
-      return acc;
-    }, {} as Record<string, any>)
+    initialValues && Object.keys(initialValues).length > 0
+      ? initialValues
+      : defaultValues
   );
+
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // ✅ Rebuild the form when initialValues change
+  useEffect(() => {
+    if (formSubmitted && initialValues) {
+      setFormData(initialValues);
+    }
+  }, [formSubmitted, initialValues]);
 
   const {
     primaryColor = "bg-blue-600",
@@ -100,51 +135,57 @@ export function DynamicForm({
   } = theme;
 
   const handleChange = (name: string, value: any, type: FieldType) => {
+    if (formSubmitted) return;
+
     setFormData((prev) => ({
       ...prev,
       [name]: type === "checkbox" ? !prev[name] : value,
     }));
+
     if (errors[name]) {
       setErrors((prev) => {
-        const newErr = { ...prev };
-        delete newErr[name];
-        return newErr;
+        const e = { ...prev };
+        delete e[name];
+        return e;
       });
     }
   };
 
   const validateForm = (): boolean => {
+    if (formSubmitted) return false;
+
     const newErrors: Record<string, string> = {};
+
     fields.forEach((f) => {
       const value = formData[f.name];
       if (f.required && (!value || value === ""))
         newErrors[f.name] = `${f.label} is required.`;
+
       if (f.type === "email" && value) {
         const re = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
         if (!re.test(value)) newErrors[f.name] = "Invalid email address.";
       }
+
       if (f.validation) {
         const err = f.validation(value);
         if (err) newErrors[f.name] = err;
       }
     });
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (formSubmitted) return;
+
     if (!validateForm()) return;
 
     setIsSubmitting(true);
+
     try {
       await onSubmit(formData);
-      setFormData(
-        fields.reduce((acc, f) => {
-          acc[f.name] = f.type === "checkbox" ? false : "";
-          return acc;
-        }, {} as Record<string, any>)
-      );
     } finally {
       setIsSubmitting(false);
     }
@@ -155,7 +196,12 @@ export function DynamicForm({
     const error = errors[field.name];
     const inputId = `field-${field.name}`;
 
-    const baseInputClass = `w-full rounded-md border ${borderColor} px-3 py-2 text-base focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[${primaryColor}] ${textColor}`;
+    const disabled = formSubmitted;
+
+    const baseInputClass = `w-full rounded-md border ${borderColor} px-3 py-2 text-base ${
+      disabled ? "opacity-60 cursor-not-allowed" : ""
+    } ${textColor}`;
+
     const errorClass = error ? `${destructiveColor} border-red-500` : "";
 
     switch (field.type) {
@@ -163,6 +209,7 @@ export function DynamicForm({
         return (
           <textarea
             id={inputId}
+            disabled={disabled}
             placeholder={field.placeholder}
             className={`${baseInputClass} min-h-24 ${errorClass}`}
             value={value}
@@ -174,6 +221,7 @@ export function DynamicForm({
         return (
           <select
             id={inputId}
+            disabled={disabled}
             className={`${baseInputClass} ${errorClass}`}
             value={value}
             onChange={(e) => handleChange(field.name, e.target.value, field.type)}
@@ -193,8 +241,11 @@ export function DynamicForm({
             <input
               type="checkbox"
               id={inputId}
+              disabled={disabled}
               checked={value}
-              onChange={(e) => handleChange(field.name, e.target.checked, field.type)}
+              onChange={(e) =>
+                handleChange(field.name, e.target.checked, field.type)
+              }
               className="h-4 w-4 cursor-pointer accent-current"
             />
             <Label htmlFor={inputId} className={textColor}>
@@ -207,10 +258,13 @@ export function DynamicForm({
         return (
           <Input
             id={inputId}
+            disabled={disabled}
             type={field.type}
             placeholder={field.placeholder}
             value={value}
-            onChange={(e:any) => handleChange(field.name, e.target.value, field.type)}
+            onChange={(e:any) =>
+              handleChange(field.name, e.target.value, field.type)
+            }
             className={`${baseInputClass} ${errorClass}`}
           />
         );
@@ -236,25 +290,30 @@ export function DynamicForm({
                   )}
                 </Label>
               )}
+
               {renderField(field)}
+
               {field.helperText && (
-                <p className={`text-sm ${mutedTextColor}`}>
-                  {field.helperText}
-                </p>
+                <p className={`text-sm ${mutedTextColor}`}>{field.helperText}</p>
               )}
+
               {errors[field.name] && (
-                <p className={`text-sm ${destructiveColor}`}>{errors[field.name]}</p>
+                <p className={`text-sm ${destructiveColor}`}>
+                  {errors[field.name]}
+                </p>
               )}
             </div>
           ))}
 
-          <Button
-            type="submit"
-            className={`w-full ${primaryColor}`}
-            disabled={isSubmitting || isLoading}
-          >
-            {isSubmitting || isLoading ? "Submitting..." : submitButtonText}
-          </Button>
+          {!formSubmitted && (
+            <Button
+              type="submit"
+              className={`w-full ${primaryColor}`}
+              disabled={isSubmitting || isLoading}
+            >
+              {isSubmitting || isLoading ? "Submitting..." : submitButtonText}
+            </Button>
+          )}
         </form>
       </CardContent>
     </Card>

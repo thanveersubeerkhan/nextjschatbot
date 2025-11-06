@@ -13,21 +13,49 @@ import {
   PromptInputSubmit,
 } from '@/components/ai-elements/prompt-input';
 import { MessageSquare } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useChat } from '@ai-sdk/react';
 import { Response } from '@/components/ai-elements/response';
-import { lastAssistantMessageIsCompleteWithToolCalls } from 'ai';
+import { lastAssistantMessageIsCompleteWithToolCalls, UIMessage } from 'ai';
 import { DynamicForm } from '@/components/dynamicform';
 import { Loader } from '@/components/ai-elements/loader';
 
+
 const ConversationDemo = () => {
   const [input, setInput] = useState('');
-  const { messages, sendMessage, status,addToolResult } = useChat({
+
+   const conversationId = "conv_import_001";
+  const { messages, sendMessage, status,addToolResult,setMessages } = useChat({
      sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
     async onToolCall({ toolCall }) {
       if (toolCall.dynamic) return
     },
+    async onFinish(props){
+      console.log(props)
+      const message=props.message
+   fetch("/api/db", {
+  method: "POST",
+  body: JSON.stringify({
+    id: message.id,
+    role: message.role,
+    parts: message.parts,
+    conversation_id: conversationId,
+  }),
+  
+});
+
+
+    },
   });
+useEffect(() => {
+  async function load() {
+    const res = await fetch("/api/db");
+    const data = await res.json();
+    console.log(data)
+    setMessages(data);
+  }
+  load();
+}, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,6 +64,7 @@ const ConversationDemo = () => {
       setInput('');
     }
   };
+  console.log(messages)
 
   return (
     <div className="max-w-4xl mx-auto p-6 relative size-full rounded-lg border h-[90vh]">
@@ -84,6 +113,7 @@ const ConversationDemo = () => {
                                                         title={part.input.title}
                                                         description={part.input.description}
                                                         onSubmit={(data: any) => {
+                                                          
                                                           addToolResult({
                                                             tool: 'dynamicformfields',
                                                             toolCallId: callId,
@@ -104,13 +134,41 @@ const ConversationDemo = () => {
                                                   )
                           
                                                 case 'output-available':
+                                                  console.log()
                                                   return (
-                                                    <div
+                                                     <div key={callId} className="mt-4 flex flex-col gap-3">
+                                                      <div
                                                       key={callId}
                                                       className="text-green-600 font-medium"
                                                     >
                                                       ✅ Form submitted successfully
                                                     </div>
+                                                      <DynamicForm
+                                                        fields={part.input.fields}
+                                                        title={part.input.title}
+                                                        description={part.input.description}
+                                                        onSubmit={(data: any) => {
+                                                          
+                                                          addToolResult({
+                                                            tool: 'dynamicformfields',
+                                                            toolCallId: callId,
+                                                            output: data,
+                                                          })
+                                                        }}
+                                                          theme={{
+                                    primaryColor: "bg-black hover:bg-gray-700",
+                                    backgroundColor: "bg-gray-50",
+                                    textColor: "text-gray-800",
+                                    borderColor: "border-gray-400",
+                                    destructiveColor: "text-red-500",
+                                    mutedTextColor: "text-gray-500",
+                                  }}
+                                  formSubmitted={true}
+                                  initialValues={part.output}
+                                
+                                                      />
+                                                    </div>
+                                                    
                                                   )
                           
                                                 // case 'output-error':
