@@ -308,7 +308,7 @@ export function DynamicForm({
           {!formSubmitted && (
             <Button
               type="submit"
-              className={`w-full ${primaryColor}`}
+              className={`w-full ${primaryColor} text-white`}
               disabled={isSubmitting || isLoading}
             >
               {isSubmitting || isLoading ? "Submitting..." : submitButtonText}
