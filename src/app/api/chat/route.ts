@@ -12,6 +12,16 @@ export const maxDuration = 30;
 export async function POST(req: Request) {
   const conversationId = "conv_import_001";
   const { messages } = await req.json();
+    const last = messages[messages.length - 1];
+
+<<<<<<< HEAD
+  await fetch("https://nextjschatbot-rho.vercel.app/api/db", {
+  method: "POST",
+  body: JSON.stringify({
+    ...last,
+    conversation_id: conversationId,
+  }),
+});
 
   // Helper: Dummy ticket creator
   function createDummyTicket(data: any) {
