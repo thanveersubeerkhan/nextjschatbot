@@ -14,7 +14,7 @@ export async function POST(req: Request) {
   const { messages } = await req.json();
     const last = messages[messages.length - 1];
 
-<<<<<<< HEAD
+
   await fetch("https://nextjschatbot-rho.vercel.app/api/db", {
   method: "POST",
   body: JSON.stringify({
